@@ -2,24 +2,26 @@
 FROM maven:3.9.4-eclipse-temurin-17 AS build
 WORKDIR /app
 
-# copy only maven files first for layer cache
-COPY pom.xml mvnw ./
+# copy Maven files
+COPY pom.xml mvnw* ./
 COPY .mvn .mvn
+
+# give execute permission to mvnw (fix for Windows)
+RUN chmod +x mvnw
+
 # copy backend source
 COPY src ./src
 
-# build jar (produces target/*.jar)
+# build jar
 RUN ./mvnw -B -DskipTests package
 
 # runtime stage
 FROM eclipse-temurin:17-jre
 WORKDIR /app
 
-# copy jar from build stage (wildcard to avoid hardcoding artifactId)
+# copy jar from build stage
 COPY --from=build /app/target/*.jar app.jar
 
-# Let Spring use Render's provided port environment variable
-ENV JAVA_OPTS=""
-
-# run the jar
+# run Spring Boot on Render's provided PORT
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -Dserver.port=${PORT:-8080} -jar /app/app.jar"]
+
